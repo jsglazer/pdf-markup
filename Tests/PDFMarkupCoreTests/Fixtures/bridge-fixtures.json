@@ -1,0 +1,27 @@
+{
+  "nativeToWeb": [
+    { "type": "openDocument", "pdfURL": "pdfmarkup://app/__document__/3f2a.pdf", "fileName": "deck.pdf", "sha256": "ab12", "sidecarJSON": null, "platform": "ios", "storageMode": "sibling" },
+    { "type": "openDocument", "pdfURL": "pdfmarkup://app/__document__/3f2a.pdf", "fileName": "deck.pdf", "sha256": "ab12", "sidecarJSON": "{\"schemaVersion\":1}", "platform": "macos", "storageMode": "fallback" },
+    { "type": "saveResult", "requestId": "save-1", "ok": true, "storageMode": "sibling", "error": null },
+    { "type": "saveResult", "requestId": "save-2", "ok": false, "storageMode": "fallback", "error": "permission denied" },
+    { "type": "flushRequest", "requestId": "flush-1", "reason": "background" },
+    { "type": "reloadScene", "sidecarJSON": "{\"schemaVersion\":1,\"pages\":{}}" },
+    { "type": "requestExport" }
+  ],
+  "webToNative": [
+    { "type": "ready", "protocolVersion": 1 },
+    { "type": "saveScene", "requestId": "save-1", "sidecarJSON": "{\"schemaVersion\":1}" },
+    { "type": "dirtyChanged", "dirty": true },
+    { "type": "flushComplete", "requestId": "flush-1", "saved": false },
+    { "type": "exportReady", "fileName": "deck-marked.pdf", "pdfBase64": "JVBERi0=" },
+    { "type": "exportFailed", "message": "boom" },
+    { "type": "log", "level": "warn", "message": "dropped element" }
+  ],
+  "invalidNativeToWeb": [
+    { "type": "openDocument", "pdfURL": "x" },
+    { "type": "saveResult", "requestId": "save-1", "ok": "yes", "storageMode": "sibling", "error": null },
+    { "type": "flushRequest", "requestId": "flush-1", "reason": "later" },
+    { "type": "nope" },
+    { "notype": true }
+  ]
+}

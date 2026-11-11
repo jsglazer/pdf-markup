@@ -1,0 +1,15 @@
+included:
+  - Sources
+  - Tests
+  - App/Sources
+excluded:
+  - .build
+  - web
+opt_in_rules:
+  - force_unwrapping
+  - explicit_acl
+line_length:
+  warning: 160
+  error: 220
+identifier_name:
+  excluded: [id, ok, a, b, i, e, d, h, u]
