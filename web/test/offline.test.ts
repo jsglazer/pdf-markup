@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FingerPan, routePointer, routeWheel } from "../src/components/inputRouting";
 import { configureExcalidrawAssetPath, localAssetBase } from "../src/platform/assetPath";
-import { ESM_SH_FALLBACK, LOCAL_FALLBACK_EXPR } from "../vite.config";
+import { applyVendorPatches, DEFAULT_TEXT_SIZE, VENDOR_PATCHES } from "../build/vendorPatches";
 
 const root = resolve(__dirname, "..");
 
@@ -27,25 +27,29 @@ describe("offline asset configuration", () => {
     expect(csp).toContain("frame-src 'none'");
   });
 
-  it("the build rewrites Excalidraw's esm.sh font fallback exactly once in the shipped vendor chunk", () => {
+  it("every Excalidraw build patch matches the installed vendor bundle exactly as expected", () => {
     const dir = resolve(root, "node_modules/@excalidraw/excalidraw/dist/prod");
-    let matches = 0;
+    const totals = new Map<string, number>();
+    let patched = "";
     for (const f of readdirSync(dir).filter((n) => n.endsWith(".js"))) {
-      const code = readFileSync(resolve(dir, f), "utf8");
-      const found = code.match(ESM_SH_FALLBACK)?.length ?? 0;
-      matches += found;
-      if (found) expect(code.replace(ESM_SH_FALLBACK, LOCAL_FALLBACK_EXPR)).not.toContain("esm.sh");
+      const { code, counts } = applyVendorPatches(readFileSync(resolve(dir, f), "utf8"));
+      for (const [name, n] of counts) totals.set(name, (totals.get(name) ?? 0) + n);
+      patched += code;
     }
-    expect(matches).toBe(1);
+    for (const p of VENDOR_PATCHES) expect(totals.get(p.name), p.name).toBe(p.expected);
+    expect(patched).not.toContain("esm.sh");
+    expect(patched).toMatch(/size:[\w$]+\.strokeWidth\*2\.125/); // pencil at half width
+    for (const v of [11.2, 14, 19.6, 25.2]) expect(patched).toContain(`{value:${v},text:`);
+    expect(DEFAULT_TEXT_SIZE).toBe(14);
   });
 
-  it("no source file in src/ references an http(s) URL", () => {
+  it("no source file in src/ references an http(s) URL (other than the SVG namespace)", () => {
     const walk = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
         d.isDirectory() ? walk(resolve(dir, d.name)) : [resolve(dir, d.name)],
       );
     for (const file of walk(resolve(root, "src"))) {
-      expect(readFileSync(file, "utf8"), file).not.toMatch(/https?:\/\/(?!localhost|127\.0\.0\.1)/);
+      expect(readFileSync(file, "utf8"), file).not.toMatch(/https?:\/\/(?!localhost|127\.0\.0\.1|www\.w3\.org\/2000\/svg)/); // the SVG XML namespace is an identifier, never fetched
     }
   });
 });

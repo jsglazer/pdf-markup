@@ -8,6 +8,8 @@ A personal PDF reader for macOS and iPadOS that lets you mark up slide decks and
 - One-time folder grant: pick a root folder (for example your Dropbox slides folder) and the app keeps a security-scoped bookmark so it can save sidecars next to any PDF under it.
 - PDF.js viewer: continuous vertical scroll, fit-to-width, pinch/trackpad zoom, page jump, next/previous and a page list. Only the visible pages plus two on each side are rendered, and no canvas is larger than 4096 px on its longest side.
 - Per-page Excalidraw markup aligned to the page at every zoom level. A Markup toggle switches between reading and drawing. Only one live Excalidraw editor exists at a time (on the active page); other pages show cached SVG previews.
+- LaTeX equations: in Markup mode, **∑ Equation** opens a LaTeX box with a live preview (`$…$` delimiters accepted). The equation is placed on the page in the current pen colour; select it and click **Edit ∑**, double-click it, or press Enter to change it. Equations are rendered offline by a bundled MathJax and stored in the sidecar as their LaTeX source, so they stay editable and no image files are stored.
+- Tuned for page markup: pencil (freehand) strokes render at half of Excalidraw's default width, and the text sizes (S/M/L/XL and the default) are 70% of Excalidraw's. These are build-time patches to the Excalidraw bundle, and the build fails if they no longer apply.
 - iPad: Apple Pencil draws (Excalidraw pen mode) while fingers scroll and zoom the document; Scribble is disabled on the drawing surface.
 - Auto-save: edits are debounced for 750 ms and then written with a coordinated, atomic write. Pending edits are also saved immediately when you switch pages, leave markup mode, background the app or close the document. The last 5 sidecar versions per document are kept in Application Support.
 - If a PDF is outside every granted folder, the app asks you to grant its folder. If you decline, or the folder can't be granted, markup goes to an app-local store with a persistent "Sidecar not syncing – Export/Relink" badge. The app never refuses to annotate.
@@ -34,7 +36,7 @@ Page keys are 1-based and empty pages are omitted. Coordinates are PDF points at
 | `Package.swift`, `Sources/PDFMarkupCore` | Swift package: sidecar stores (sibling and app container), `NSFileCoordinator` I/O, bookmarks, recent files, version ring, bridge message types, document session and bridge controller |
 | `Tests/PDFMarkupCoreTests` | Swift Testing suite (`swift test`), including the bridge fixtures shared with the web tests |
 | `App/` | SwiftUI app with native iOS/iPadOS and macOS targets; `project.yml` is the XcodeGen spec |
-| `web/` | Vite + React + TypeScript web core (PDF.js, Excalidraw, pdf-lib) with Vitest tests |
+| `web/` | Vite + React + TypeScript web core (PDF.js, Excalidraw, pdf-lib, MathJax) with Vitest tests; `web/build/vendorPatches.ts` holds the guarded Excalidraw patches |
 | `scripts/embed-web.sh` | Xcode pre-build step that builds `web/` and copies `web/dist` into the app bundle |
 
 ## Building

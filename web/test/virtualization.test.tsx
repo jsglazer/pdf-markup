@@ -20,6 +20,9 @@ vi.mock("@excalidraw/excalidraw", () => ({
   exportToSvg: vi.fn(async () => document.createElementNS("http://www.w3.org/2000/svg", "svg")),
   exportToCanvas: vi.fn(),
   getCommonBounds: () => [0, 0, 10, 10],
+  convertToExcalidrawElements: vi.fn(),
+  newElementWith: vi.fn(),
+  CaptureUpdateAction: { IMMEDIATELY: "IMMEDIATELY" },
 }));
 
 import { DocumentView, selectLivePage, type DocumentViewProps } from "../src/components/DocumentView";
@@ -35,6 +38,7 @@ import {
   visiblePages,
 } from "../src/virtualization/layout";
 import { element, fakePdfSource, hundredPageSizes } from "./fixtures/fakes";
+import { EquationRenderer } from "../src/equations/equation";
 
 const VIEWPORT_H = 900;
 
@@ -57,6 +61,7 @@ function setup(overrides: Partial<DocumentViewProps> = {}) {
     revisionFor: () => 0,
     onElementsChange: () => undefined,
     onActivatePage: () => undefined,
+    equations: new EquationRenderer(),
     ...overrides,
   };
   const view = render(<DocumentView {...props} />);

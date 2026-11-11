@@ -42,3 +42,17 @@ body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; 
 .markup-live .excalidraw { --color-surface-lowest: transparent; background: transparent; }
 .markup-live .excalidraw .default-sidebar-trigger, .markup-live .excalidraw .sidebar-trigger, .markup-live .excalidraw .help-icon { display: none; }
 .harness-input { position: fixed; bottom: 8px; right: 8px; z-index: 10; }
+/* Equation dialog */
+.eq-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; z-index: 100; }
+.eq-dialog { width: min(560px, calc(100vw - 32px)); background: var(--bar); color: var(--fg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 10px; }
+.eq-title { font-weight: 600; }
+.eq-input { font: 15px ui-monospace, Menlo, monospace; min-height: 64px; resize: vertical; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: inherit; -webkit-user-select: text; user-select: text; }
+.eq-preview { min-height: 64px; display: flex; align-items: center; justify-content: center; background: white; color: #1e1e1e; border-radius: 8px; padding: 8px; overflow-x: auto; }
+.eq-svg svg { max-width: 100%; height: auto; }
+.eq-error { color: #c0392b; }
+.eq-hint { color: #888; font-size: 12px; }
+.eq-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+.eq-actions .eq-hint { margin-right: auto; }
+.eq-actions button { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: inherit; }
+.eq-actions button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.eq-actions button:disabled { opacity: 0.5; }

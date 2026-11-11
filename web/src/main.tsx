@@ -6,7 +6,8 @@ import { createRoot } from "react-dom/client";
 import { createMemoryTransportPair, WebKitTransport, type BridgeTransport } from "./bridge/transport";
 import { App } from "./components/App";
 import { DocumentController } from "./controller/documentController";
-import { rasterizeWithExcalidraw, renderStaticPreview } from "./excalidraw/adapter";
+import { makeExcalidrawRasterizer, makeStaticPreviewRenderer } from "./excalidraw/adapter";
+import { EquationRenderer } from "./equations/equation";
 import { openPdfWithPdfjs } from "./pdf/pdfjsSource";
 import { browserScheduler } from "./sidecar/sceneStore";
 import { startBrowserHarness } from "./platform/browserHarness";
@@ -22,14 +23,18 @@ if (WebKitTransport.isAvailable(win)) {
   startBrowserHarness(pair.native);
 }
 
+// One MathJax renderer for the app (renders are cached by LaTeX + colour).
+const equations = new EquationRenderer();
+const renderPreview = makeStaticPreviewRenderer(equations);
+
 const controller = new DocumentController({
   transport,
   openPdf: openPdfWithPdfjs,
-  rasterize: rasterizeWithExcalidraw,
+  rasterize: makeExcalidrawRasterizer(equations),
   scheduler: browserScheduler,
 });
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("#root missing");
-createRoot(rootEl).render(<App controller={controller} scheduler={browserScheduler} renderPreview={renderStaticPreview} />);
+createRoot(rootEl).render(<App controller={controller} scheduler={browserScheduler} renderPreview={renderPreview} equations={equations} />);
 controller.start();

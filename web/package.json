@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
+    "mathjax-full": "3.2.2",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.4.299",
     "react": "19.2.9",

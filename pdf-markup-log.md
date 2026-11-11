@@ -108,3 +108,41 @@ Next to check: draw on `Equations Key.pdf`, and within about a second `Equations
 **Summary presented to user:**
 
 That explains it. In 1.0.1, opening a second PDF kept the first one loaded, which is the bug 1.0.2 fixes. The orange-box document probably came from that bug or from my leftover test prompt. To get onto 1.0.2 cleanly: quit every copy of PDF Markup (you may have two running: your installed one and the one my test launched from `dist/`); open `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.2.dmg` and drag the app over the copy in Applications (choose Replace); launch it from Applications and remove `test.pdf` from Recents; open `Equations Key.pdf`, click Markup and draw, and `Equations Key.pdf.excalidraw.json` should appear next to it within about a second. My offer still stands: I can make the app warn you when you grant a folder that doesn't contain the PDF, instead of silently keeping markup on this Mac only.
+
+## 2026-11-11 — v1.0.3: thinner pencil, smaller text, LaTeX equations
+
+**Prompt:** "it works! nice icon. Can we — make the pencil's stroke widths all render at 1/2 their current width? they are all too big — shrink all text sizes by 30% — need a way to add equations ($e = {mc}^2 + \dfrac{1}{5}$)"
+
+- **Guarded vendor patches.** Replaced the single CDN-rewrite plugin with `web/build/vendorPatches.ts`: a list of patches to the Excalidraw production bundle, each of which must match exactly the expected number of times or the build fails. `test/offline.test.ts` checks every pattern against the installed bundle.
+  - esm.sh font fallback → local origin (unchanged behaviour).
+  - Pencil: perfect-freehand `size: strokeWidth*4.25` → `*2.125`. Every freehand stroke, existing and new, renders at half width in the live editor, previews and export; stored `strokeWidth` is unchanged; shapes and arrows unaffected.
+  - Text: font-size picker 16/20/28/36 → 11.2/14/19.6/25.2, and the live editor starts with `currentItemFontSize` 14. New text is 30% smaller; existing text keeps its stored size.
+- **LaTeX equations** (MathJax 3, `mathjax-full` 3.2.2 pinned; fonts bundled in JS, works offline and headless):
+  - `src/equations/equationData.ts` (light helpers: `normalizeLatex` strips `$…$`, `$$…$$`, `\(…\)`, `\[…\]`; deterministic `equationFileId`; `isEquationElement`) and `src/equations/equation.ts` (`EquationRenderer`: TeX → standalone SVG sized in page points at 14 pt, coloured, cached; TeX errors throw `EquationError` with MathJax's message; `equationFiles` builds Excalidraw's files map).
+  - An equation is an Excalidraw image element with `customData: { kind: "equation", latex, color }`. The sidecar stores only the element; the SVG is regenerated from the LaTeX for the live editor, static previews and export. The schema accepts image elements only when they are equations (ordinary images are still dropped), so D7's "no image insertion / no files map" holds for everything except this LaTeX-backed exception.
+  - UI: **∑ Equation** toolbar button in Markup mode → `EquationDialog` (LaTeX textarea, live MathJax preview, error text, ⌘↩ to insert, Esc to cancel). Inserted at the centre of the visible part of the page in the current pen colour, and selected. With an equation selected the button reads **Edit ∑**; double-click or Enter on it also opens the editor (intercepted in the capture phase so Excalidraw's image crop doesn't start).
+  - Adapter: the live editor registers a `LiveEditorHandle` (`insertEquation`, `updateEquation`) with the controller and reports the selected equation; static previews and the export rasterizer became factories (`makeStaticPreviewRenderer`, `makeExcalidrawRasterizer`) that receive the shared `EquationRenderer`.
+- Static previews now pass `skipInliningFonts: true`. Fonts are already loaded in the page; inlining had started Excalidraw's subsetting worker, which needs `eval`, so the CSP blocked it with console errors whenever a page held text.
+- Tests: new `test/equations.test.ts` (delimiters, rendering your example, determinism/caching, TeX errors, files map, sidecar round-trip and image rejection, controller commands). The URL guard test allows the SVG XML namespace string. Vitest 63/63, `swift test` 32/32.
+- Real-WebKit check (scratchpad harness, production bundle with CSP): seeded a pencil stroke and 20 pt text, entered Markup, clicked ∑ Equation, typed `$e = {mc}^2 + \dfrac{1}{5}$` → preview rendered, Insert placed and selected it (button became "Edit ∑"), autosave sent the scene, no console errors after the preview fix. Flattened export (22 KB PDF) shows the half-width stroke, the text and the equation correctly placed.
+- Version 1.0.2 → 1.0.3. iOS Simulator build clean; `dist/PDF-Markup-1.0.3.dmg` built (Developer ID signed, not notarized). README updated.
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Pencil strokes too thick | Patched freedraw size factor 4.25 → 2.125 (render-level; all strokes) |
+| 2 | Text too large | Patched font picker sizes ×0.7; default text size 14 |
+| 3 | No way to add equations | ∑ Equation dialog with MathJax preview; LaTeX-backed image elements re-rendered on load; edit via Edit ∑, double-click or Enter |
+| 4 | Font-subsetting worker blocked by the CSP (console errors with text on a page) | `skipInliningFonts: true` for in-page previews |
+| 5 | Single-purpose CDN patch plugin | Generic guarded `VENDOR_PATCHES` list, checked at build and in tests |
+
+**Summary presented to user:**
+
+All three are in 1.0.3: `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.3.dmg`. Quit the app first, then drag it over the copy in Applications.
+
+- **Pencil:** every pencil stroke, including ones you've already drawn, renders at half width on screen and in exports. The stroke-width buttons still work, at half their old thickness. Shapes and arrows are unchanged.
+- **Text:** the S/M/L/XL sizes and the default are 30% smaller. Text you've already placed keeps its size; re-pick its size in the panel to shrink it.
+- **Equations:** in Markup mode, click **∑ Equation**, type LaTeX with or without `$…$`, check the live preview, and click **Insert** (or press ⌘↩). The equation lands in the middle of the visible page in your current pen colour. To change it, select it and click **Edit ∑**, double-click it, or press Enter. It's rendered offline by a bundled MathJax and saved in the sidecar as LaTeX, so it stays editable and syncs as text. Invalid LaTeX shows MathJax's error message in the dialog instead of inserting.
+
+I tested this in real WebKit with the production bundle. I inserted your exact example through the dialog, and it rendered, autosaved, and came out correctly in the flattened PDF along with the thinner pencil stroke. Tests pass (web 63, Swift 32), and the iOS target still builds.
+
+One rule changed: the build plan disallowed images in the markup. Equations are stored as image elements, so I allowed images only when they're equations. Ordinary images are still blocked, and the sidecar still holds no image files.

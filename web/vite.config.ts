@@ -4,36 +4,32 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { applyVendorPatches, VENDOR_PATCHES } from "./build/vendorPatches";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const excalidrawDist = resolve(here, "node_modules/@excalidraw/excalidraw/dist/prod");
 const pdfjsRoot = resolve(here, "node_modules/pdfjs-dist");
 
 /**
- * Excalidraw always appends a CDN fallback (esm.sh) after the configured EXCALIDRAW_ASSET_PATH when it
- * builds font URLs. This transform rewrites that one template literal to the app's own origin, so the
- * shipped bundle has no CDN URL at all. The build fails if the pattern is not found exactly once, so an
- * Excalidraw upgrade that moves the string cannot silently reintroduce the CDN.
+ * Applies the guarded Excalidraw patches in build/vendorPatches.ts (CDN fallback → local origin,
+ * thinner pencil strokes, smaller text sizes). Fails the build unless each matches exactly as expected.
  */
-// Lazy match: the ${...} expression itself contains nested template literals.
-export const ESM_SH_FALLBACK = /`https:\/\/esm\.sh\/\$\{.*?\}\/dist\/prod\/`/gs;
-export const LOCAL_FALLBACK_EXPR = '(typeof document<"u"?new URL("./",document.baseURI).href:"pdfmarkup://app/")';
-
-function neutralizeExcalidrawCdnFallback(): Plugin {
-  let replacements = 0;
+function patchExcalidraw(): Plugin {
+  const totals = new Map<string, number>();
   return {
-    name: "pdf-markup:neutralize-excalidraw-cdn-fallback",
+    name: "pdf-markup:patch-excalidraw",
     apply: "build",
     transform(code, id) {
-      if (!id.includes("@excalidraw/excalidraw") || !code.includes("https://esm.sh/")) return null;
-      const matches = code.match(ESM_SH_FALLBACK)?.length ?? 0;
-      replacements += matches;
-      return { code: code.replace(ESM_SH_FALLBACK, LOCAL_FALLBACK_EXPR), map: null };
+      if (!id.includes("@excalidraw/excalidraw/dist/prod")) return null;
+      const { code: out, counts } = applyVendorPatches(code);
+      for (const [name, n] of counts) totals.set(name, (totals.get(name) ?? 0) + n);
+      return out === code ? null : { code: out, map: null };
     },
     buildEnd(error) {
       if (error) return; // let the original build error surface
-      if (replacements !== 1) {
-        this.error(`Expected exactly 1 Excalidraw esm.sh fallback to rewrite, found ${replacements}`);
+      for (const p of VENDOR_PATCHES) {
+        const n = totals.get(p.name) ?? 0;
+        if (n !== p.expected) this.error(`Excalidraw patch "${p.name}": expected ${p.expected} match(es), found ${n}`);
       }
     },
   };
@@ -63,7 +59,7 @@ function copyLocalAssets(): Plugin {
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), neutralizeExcalidrawCdnFallback(), copyLocalAssets()],
+  plugins: [react(), patchExcalidraw(), copyLocalAssets()],
   define: {
     "process.env.IS_PREACT": JSON.stringify("false"),
   },

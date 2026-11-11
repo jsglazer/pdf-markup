@@ -13,6 +13,7 @@ import {
 import { DocumentView } from "./DocumentView";
 import { FingerPan, routePointer, routeWheel, wheelZoomFactor } from "./inputRouting";
 import type { PreviewCache } from "./previewCache";
+import type { EquationRenderer } from "../equations/equation";
 
 /** After scrolling settles in markup mode, the live instance follows the most visible page (D5). */
 export const ACTIVE_PAGE_SETTLE_MS = 150;
@@ -30,6 +31,7 @@ interface Props {
   zoomCommand: { kind: "in" | "out" | "fit"; nonce: number } | null;
   navigateTo: { page: number; nonce: number } | null;
   onCurrentPageChange: (page: number) => void;
+  equations: EquationRenderer;
 }
 
 interface GestureEventLike extends UIEvent {
@@ -232,6 +234,10 @@ export function DocumentScroller(props: Props) {
           revisionFor={(p) => controller.revision(p)}
           onElementsChange={controller.updatePage}
           onActivatePage={(p) => controller.activatePage(p)}
+          equations={props.equations}
+          onLiveEditor={controller.setLiveEditor}
+          onSelectedEquationChange={controller.setSelectedEquation}
+          onEditEquationRequest={controller.requestEquationEdit}
         />
       </div>
     </div>

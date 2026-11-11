@@ -1,5 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { LiveMarkupLayer } from "../excalidraw/adapter";
+import type { EquationRenderer } from "../equations/equation";
+import type { LiveEditorHandle, SelectedEquation } from "../controller/documentController";
 import type { PdfDocumentSource } from "../pdf/pdfSource";
 import type { SidecarElement } from "../sidecar/schema";
 import type { DocumentLayout } from "../virtualization/layout";
@@ -34,6 +36,10 @@ export interface DocumentViewProps {
   onElementsChange: (page: number, elements: readonly unknown[]) => void;
   /** Pencil-down (or mouse-down on macOS) on a non-live page in markup mode moves the live instance there. */
   onActivatePage: (page: number) => void;
+  equations: EquationRenderer;
+  onLiveEditor?: (handle: LiveEditorHandle | null) => void;
+  onSelectedEquationChange?: (selection: SelectedEquation | null) => void;
+  onEditEquationRequest?: () => void;
 }
 
 export function DocumentView(props: DocumentViewProps) {
@@ -82,6 +88,10 @@ export function DocumentView(props: DocumentViewProps) {
                 penMode={props.penMode}
                 readOnly={props.readOnly}
                 onElementsChange={props.onElementsChange}
+                equations={props.equations}
+                onLiveEditor={props.onLiveEditor}
+                onSelectedEquationChange={props.onSelectedEquationChange}
+                onEditEquationRequest={props.onEditEquationRequest}
               />
             ) : (
               <StaticOverlay

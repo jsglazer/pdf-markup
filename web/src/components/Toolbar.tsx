@@ -12,6 +12,9 @@ interface Props {
   onGoTo: (page: number) => void;
   onZoom: (kind: "in" | "out" | "fit") => void;
   onExport: () => void;
+  /** null = hidden (not in markup mode); otherwise the label state of the ∑ button. */
+  equation: { editing: boolean; enabled: boolean } | null;
+  onEquation: () => void;
 }
 
 export function Toolbar(p: Props) {
@@ -65,6 +68,16 @@ export function Toolbar(p: Props) {
       <button type="button" onClick={() => p.onZoom("in")} aria-label="Zoom in">
         +
       </button>
+      {p.equation && (
+        <button
+          type="button"
+          onClick={p.onEquation}
+          disabled={!p.equation.enabled}
+          title={p.equation.editing ? "Edit the selected equation" : "Insert a LaTeX equation"}
+        >
+          {p.equation.editing ? "Edit ∑" : "∑ Equation"}
+        </button>
+      )}
       <button
         type="button"
         className={p.mode === "markup" ? "active" : ""}

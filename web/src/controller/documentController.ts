@@ -6,6 +6,17 @@ import type { OpenPdf, PdfDocumentSource } from "../pdf/pdfSource";
 import { parseSidecar, type SidecarElement, type SidecarPdfInfo } from "../sidecar/schema";
 import { SceneStore, type FlushTrigger, type Scheduler } from "../sidecar/sceneStore";
 
+/** What the single live editor exposes for equations (implemented by the Excalidraw adapter). */
+export interface LiveEditorHandle {
+  insertEquation(latex: string): void;
+  updateEquation(id: string, latex: string): void;
+}
+
+export interface SelectedEquation {
+  id: string;
+  latex: string;
+}
+
 export type Mode = "reading" | "markup";
 
 export interface ControllerState {
@@ -23,6 +34,12 @@ export interface ControllerState {
   exporting: boolean;
   /** Bumped when the scene is replaced from disk, so the live instance remounts with fresh data. */
   sceneEpoch: number;
+  /** The single selected element in the live editor, when it is an equation (toolbar shows "Edit ∑"). */
+  selectedEquation: SelectedEquation | null;
+  /** True while a live editor is mounted and can take an equation. */
+  canInsertEquation: boolean;
+  /** Incremented when the user double-clicks (or presses Enter on) the selected equation. */
+  equationEditRequest: number;
 }
 
 export interface ControllerDeps {
@@ -45,6 +62,9 @@ const INITIAL: ControllerState = {
   warnings: [],
   exporting: false,
   sceneEpoch: 0,
+  selectedEquation: null,
+  canInsertEquation: false,
+  equationEditRequest: 0,
 };
 
 /**
@@ -60,6 +80,7 @@ export class DocumentController {
   private nextRequest = 1;
   private readonly pendingSaves = new Map<string, (ok: boolean) => void>();
   private unsubscribe: (() => void) | null = null;
+  private liveEditor: LiveEditorHandle | null = null;
 
   constructor(private readonly deps: ControllerDeps) {}
 
@@ -110,6 +131,32 @@ export class DocumentController {
   updatePage = (page: number, elements: readonly unknown[]): void => {
     if (this.store?.updatePage(page, elements)) this.set({});
   };
+
+  // ---- equations ----------------------------------------------------------------------------------
+
+  /** Registered by the live editor on mount (null on unmount). */
+  setLiveEditor = (handle: LiveEditorHandle | null): void => {
+    this.liveEditor = handle;
+    if (this.state.canInsertEquation !== (handle !== null)) this.set({ canInsertEquation: handle !== null });
+  };
+
+  setSelectedEquation = (selection: SelectedEquation | null): void => {
+    const cur = this.state.selectedEquation;
+    if (cur?.id === selection?.id && cur?.latex === selection?.latex) return;
+    this.set({ selectedEquation: selection });
+  };
+
+  requestEquationEdit = (): void => {
+    if (this.state.selectedEquation) this.set({ equationEditRequest: this.state.equationEditRequest + 1 });
+  };
+
+  /** Inserts a new equation, or replaces the LaTeX of `editId`. Returns false when no live editor exists. */
+  commitEquation(latex: string, editId: string | null): boolean {
+    if (!this.liveEditor || this.state.readOnly) return false;
+    if (editId) this.liveEditor.updateEquation(editId, latex);
+    else this.liveEditor.insertEquation(latex);
+    return true;
+  }
 
   // ---- modes & active page (D5) -------------------------------------------------------------------
 
