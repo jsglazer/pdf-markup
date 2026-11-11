@@ -97,3 +97,14 @@ Checking that turned up a real bug, which is probably what confused things. If y
 On 1.0.2, `Equations Key.pdf` from `~/Dev/TEST/Markup/A` renders all 4 pages with no badge, so markup is saved next to it, and the Excalidraw tools appear in Markup mode. You seemed to be using the window my test opened (that's the 1.0.2 build from `dist/`), so I stopped there and left it running.
 
 Next to check: draw on `Equations Key.pdf`, and within about a second `Equations Key.pdf.excalidraw.json` should appear in that folder. Then reopen it, then try Export. Committed and pushed.
+
+## 2026-11-11 — Report traced to the old version
+
+**Prompt:** "it opened and rendered the PDF, but when I clicked Markup and chose the text folder it went back to the empty doc with the orange boxes" — then "opps i was on old version"
+
+- First reply: the likely cause was my earlier test sending `test.pdf` to the running app, which raised the D2 grant prompt for `test.pdf`; granting a folder that doesn't contain it then reopens `test.pdf` in fallback mode. Offered to add a message when the chosen folder doesn't contain the PDF (not implemented; awaiting the user's answer).
+- The user then confirmed they were on the old version (1.0.1, which has the document-reuse bug fixed in 1.0.2). Gave clean install steps for 1.0.2 (quit all copies, replace the copy in /Applications, remove `test.pdf` from Recents, test drawing on `Equations Key.pdf`). No code changes.
+
+**Summary presented to user:**
+
+That explains it. In 1.0.1, opening a second PDF kept the first one loaded, which is the bug 1.0.2 fixes. The orange-box document probably came from that bug or from my leftover test prompt. To get onto 1.0.2 cleanly: quit every copy of PDF Markup (you may have two running: your installed one and the one my test launched from `dist/`); open `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.2.dmg` and drag the app over the copy in Applications (choose Replace); launch it from Applications and remove `test.pdf` from Recents; open `Equations Key.pdf`, click Markup and draw, and `Equations Key.pdf.excalidraw.json` should appear next to it within about a second. My offer still stands: I can make the app warn you when you grant a folder that doesn't contain the PDF, instead of silently keeping markup on this Mac only.
