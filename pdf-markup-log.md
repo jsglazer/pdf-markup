@@ -185,3 +185,20 @@ Both are in 1.0.4: `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1
 Line breaks stay as you type them, but long lines don't wrap automatically, so press Return where you want a break. The note uses your current pen colour and text size. To change it, select it and click **Edit text**, double-click it, or press Enter. It's saved in the sidecar as Markdown, so it stays editable.
 
 Tested in real WebKit: a note with a heading, bold, math, bullets, code and a quote rendered correctly on the page and in the flattened PDF export. Tests pass (web 71, Swift 32), and the iOS app still builds.
+
+## 2026-11-11 — Release 1.0.4, repo completeness, .gitignore
+
+**Prompts:** "can you push a release so I can install on other laptop?" → "auto" (release notes) → notarized rebuilds by the user → "is everything needed for development pushed to github? I may continue dev on another mac" → "yes please commit .gitignore"
+
+- Release `1.0.4` published via `dev-newrelease` (details in the Dev file's `# Claude Log`). It was held until the DMG passed the notarization gate. `scripts/make-dmg.sh` now also tries the shared `notarytool` keychain profile (86661d8), which is what made the user's rebuild notarize. The published asset passed Gatekeeper as a quarantined download.
+- Repo audit: no unpushed commits and nothing untracked; all sources, tests, fixtures, lockfile, `project.yml`, icon assets and scripts are on GitHub. Generated output is rebuilt by `npm ci`, `xcodegen generate` and the builds. `CLAUDE.md`, `GEMINI.md`, `NewBuild/` and `.claude/settings.local.json` stay local-only by the scaffold's design; the vault files (`BuildLog.md`, Dev file) sync with `~/VaultDEV`.
+- `.gitignore` listed itself, so clones got no ignore rules. Removed that line and committed `.gitignore` (9346dc2); `CLAUDE.md`, `GEMINI.md` and `NewBuild/` remain ignored.
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Notarized builds skipped (no matching notary profile name) | `make-dmg.sh` also tries the shared `notarytool` profile |
+| 2 | Clones had no `.gitignore` (it ignored itself) | Removed the self-entry; `.gitignore` is now tracked |
+
+**Summary presented to user:**
+
+Done: `.gitignore` is now on GitHub (commit 9346dc2), so a clone on your other Mac ignores `node_modules`, `dist/`, `.build/` and the generated Xcode project from the start. I removed only the line where it ignored itself. `CLAUDE.md`, `GEMINI.md` and `NewBuild/` are still ignored and stay local to this Mac, so copy them over yourself if you want Claude to follow the same project rules there. Everything else needed for development is pushed; on the other Mac, clone the repo, then run `npm ci` in `web/` and `xcodegen generate` in `App/`.
