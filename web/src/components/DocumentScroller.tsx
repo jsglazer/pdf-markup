@@ -236,8 +236,8 @@ export function DocumentScroller(props: Props) {
           onActivatePage={(p) => controller.activatePage(p)}
           equations={props.equations}
           onLiveEditor={controller.setLiveEditor}
-          onSelectedEquationChange={controller.setSelectedEquation}
-          onEditEquationRequest={controller.requestEquationEdit}
+          onSelectedRichChange={controller.setSelectedRich}
+          onEditRichRequest={controller.requestRichEdit}
         />
       </div>
     </div>

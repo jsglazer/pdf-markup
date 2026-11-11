@@ -17,18 +17,20 @@ import { useEffect, useRef } from "react";
 import { DEFAULT_TEXT_SIZE } from "../../build/vendorPatches";
 import {
   EQUATION_KIND,
-  equationFile,
-  equationFileId,
-  equationFiles,
-  isEquationElement,
+  isRichElement,
+  MARKDOWN_KIND,
   normalizeLatex,
-  type EquationData,
+  richFile,
+  richFileId,
+  richFiles,
+  richSource,
   type EquationRenderer,
+  type RichData,
 } from "../equations/equation";
 import { excalidrawViewState, type Rect, type Size } from "../geometry/coords";
 import { EXPORT_RASTER_SCALE, type RasterizePage } from "../export/flatten";
 import type { SidecarElement } from "../sidecar/schema";
-import type { LiveEditorHandle, SelectedEquation } from "../controller/documentController";
+import type { LiveEditorHandle, RichKind, SelectedRich } from "../controller/documentController";
 
 type SceneElements = Parameters<typeof exportToSvg>[0]["elements"];
 type SceneElement = SceneElements[number];
@@ -68,9 +70,9 @@ export interface LiveMarkupLayerProps {
   equations: EquationRenderer;
   onElementsChange: (page: number, elements: readonly unknown[]) => void;
   onLiveEditor?: (handle: LiveEditorHandle | null) => void;
-  onSelectedEquationChange?: (selection: SelectedEquation | null) => void;
-  /** Double-click / Enter on the selected equation: open the LaTeX editor instead of Excalidraw's image crop. */
-  onEditEquationRequest?: () => void;
+  onSelectedRichChange?: (selection: SelectedRich | null) => void;
+  /** Double-click / Enter on the selected equation / note: open its editor instead of Excalidraw's image crop. */
+  onEditRichRequest?: () => void;
 }
 
 /**
@@ -79,7 +81,7 @@ export interface LiveMarkupLayerProps {
  * re-pinned whenever Excalidraw tries to pan or zoom on its own (D3).
  */
 export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
-  const { page, initialElements, zoom, penMode, readOnly, equations, onElementsChange, onLiveEditor, onSelectedEquationChange, onEditEquationRequest } = props;
+  const { page, initialElements, zoom, penMode, readOnly, equations, onElementsChange, onLiveEditor, onSelectedRichChange, onEditRichRequest } = props;
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(zoom);
@@ -102,16 +104,26 @@ export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
       const right = Math.min(r.right, window.innerWidth || r.right);
       return { x: ((left + right) / 2 - r.left) / z, y: ((top + bottom) / 2 - r.top) / z };
     };
+    /** New rich data for `kind` from the editor's current pen colour / text size. */
+    const freshData = (api: ExcalidrawImperativeAPI, kind: RichKind, source: string): RichData => {
+      const st = api.getAppState();
+      return kind === EQUATION_KIND
+        ? { kind: EQUATION_KIND, latex: normalizeLatex(source), color: st.currentItemStrokeColor }
+        : { kind: MARKDOWN_KIND, markdown: source.replace(/\s+$/, ""), color: st.currentItemStrokeColor, fontSize: st.currentItemFontSize };
+    };
     const handle: LiveEditorHandle = {
-      insertEquation(raw) {
+      insertRich(kind, source) {
         const api = apiRef.current;
         if (!api) return;
-        const data: EquationData = { kind: EQUATION_KIND, latex: normalizeLatex(raw), color: api.getAppState().currentItemStrokeColor };
-        const file = equationFile(equations, data);
-        const size = equations.render(data.latex, data.color);
+        const data = freshData(api, kind, source);
+        const file = richFile(equations, data);
+        const size = equations.renderRich(data);
         const c = visibleCenter();
+        // Notes are anchored at their top-left near the centre; equations are centred.
+        const x = kind === EQUATION_KIND ? c.x - size.width / 2 : c.x - Math.min(size.width, 200) / 2;
+        const y = kind === EQUATION_KIND ? c.y - size.height / 2 : c.y - Math.min(size.height, 40) / 2;
         const [base] = convertToExcalidrawElements([
-          { type: "image", fileId: file.id as never, x: c.x - size.width / 2, y: c.y - size.height / 2, width: size.width, height: size.height },
+          { type: "image", fileId: file.id as never, x, y, width: size.width, height: size.height },
         ]);
         if (!base) return;
         const element = { ...base, status: "saved", customData: data } as unknown as SceneElement;
@@ -122,18 +134,20 @@ export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
           captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         });
       },
-      updateEquation(id, raw) {
+      updateRich(id, source) {
         const api = apiRef.current;
         if (!api) return;
         const all = api.getSceneElementsIncludingDeleted();
         const target = all.find((e) => e.id === id);
-        if (!target || !isEquationElement(target)) return;
-        const data: EquationData = { ...target.customData, latex: normalizeLatex(raw) };
-        const file = equationFile(equations, data);
-        const size = equations.render(data.latex, data.color);
+        if (!target || !isRichElement(target)) return;
+        const cur = target.customData;
+        const data: RichData =
+          cur.kind === EQUATION_KIND ? { ...cur, latex: normalizeLatex(source) } : { ...cur, markdown: source.replace(/\s+$/, "") };
+        const file = richFile(equations, data);
+        const size = equations.renderRich(data);
         api.addFiles([file as never]);
         const next = newElementWith(target as never, {
-          fileId: equationFileId(data.latex, data.color),
+          fileId: richFileId(data),
           width: size.width,
           height: size.height,
           customData: data,
@@ -147,9 +161,9 @@ export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
     onLiveEditor(handle);
     return () => {
       onLiveEditor(null);
-      onSelectedEquationChange?.(null);
+      onSelectedRichChange?.(null);
     };
-  }, [equations, onLiveEditor, onSelectedEquationChange]);
+  }, [equations, onLiveEditor, onSelectedRichChange]);
 
   return (
     <div
@@ -157,24 +171,24 @@ export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
       data-live-page={page}
       ref={containerRef}
       onDoubleClickCapture={(e) => {
-        if (selectedRef.current && onEditEquationRequest) {
+        if (selectedRef.current && onEditRichRequest) {
           e.preventDefault();
           e.stopPropagation();
-          onEditEquationRequest();
+          onEditRichRequest();
         }
       }}
       onKeyDownCapture={(e) => {
-        if (e.key === "Enter" && selectedRef.current && onEditEquationRequest) {
+        if (e.key === "Enter" && selectedRef.current && onEditRichRequest) {
           e.preventDefault();
           e.stopPropagation();
-          onEditEquationRequest();
+          onEditRichRequest();
         }
       }}
     >
       <Excalidraw
         initialData={{
           elements: asScene(initialElements),
-          files: asFiles(equationFiles(equations, initialElements)),
+          files: asFiles(richFiles(equations, initialElements)),
           appState: {
             ...pinnedView(zoom),
             viewBackgroundColor: "transparent",
@@ -198,14 +212,15 @@ export function LiveMarkupLayer(props: LiveMarkupLayerProps) {
             // Excalidraw never owns pan/zoom (D3): snap back to the controller's view.
             queueMicrotask(() => apiRef.current?.updateScene({ appState: pinned }));
           }
-          if (onSelectedEquationChange) {
+          if (onSelectedRichChange) {
             const ids = Object.keys(appState.selectedElementIds).filter((k) => appState.selectedElementIds[k]);
             const el = ids.length === 1 ? elements.find((e) => e.id === ids[0] && !e.isDeleted) : undefined;
-            const sel = el && isEquationElement(el) ? { id: el.id, latex: el.customData.latex } : null;
-            const key = sel ? `${sel.id}\u0000${sel.latex}` : "";
+            const sel: SelectedRich | null =
+              el && isRichElement(el) ? { id: el.id, kind: el.customData.kind, source: richSource(el.customData) } : null;
+            const key = sel ? `${sel.id}\u0000${sel.kind}\u0000${sel.source}` : "";
             if (key !== selectedRef.current) {
               selectedRef.current = key;
-              onSelectedEquationChange(sel);
+              onSelectedRichChange(sel);
             }
           }
         }}
@@ -248,7 +263,7 @@ export function makeStaticPreviewRenderer(equations: EquationRenderer) {
     const svg = await exportToSvg({
       elements: asScene(elements),
       appState: { exportBackground: false, viewBackgroundColor: "transparent", exportWithDarkMode: false },
-      files: asFiles(equationFiles(equations, elements)),
+      files: asFiles(richFiles(equations, elements)),
       exportPadding: OVERLAY_PADDING_PT,
       // Previews live in this page, where Excalidraw's fonts are already loaded. Inlining would run
       // Excalidraw's font-subsetting worker, which needs eval (blocked by the CSP) and is slow.
@@ -269,7 +284,7 @@ export function makeExcalidrawRasterizer(equations: EquationRenderer): Rasterize
     const canvas: HTMLCanvasElement = await exportToCanvas({
       elements: asScene(elements),
       appState: { exportBackground: false, viewBackgroundColor: "transparent", exportWithDarkMode: false },
-      files: asFiles(equationFiles(equations, elements)),
+      files: asFiles(richFiles(equations, elements)),
       exportPadding: OVERLAY_PADDING_PT,
       getDimensions: (w: number, h: number) => ({ width: w * EXPORT_RASTER_SCALE, height: h * EXPORT_RASTER_SCALE, scale: EXPORT_RASTER_SCALE }),
     });

@@ -39,8 +39,8 @@ describe("offline asset configuration", () => {
     for (const p of VENDOR_PATCHES) expect(totals.get(p.name), p.name).toBe(p.expected);
     expect(patched).not.toContain("esm.sh");
     expect(patched).toMatch(/size:[\w$]+\.strokeWidth\*2\.125/); // pencil at half width
-    for (const v of [11.2, 14, 19.6, 25.2]) expect(patched).toContain(`{value:${v},text:`);
-    expect(DEFAULT_TEXT_SIZE).toBe(14);
+    for (const v of [7.84, 9.8, 13.72, 17.64]) expect(patched).toContain(`{value:${v},text:`);
+    expect(DEFAULT_TEXT_SIZE).toBe(9.8);
   });
 
   it("no source file in src/ references an http(s) URL (other than the SVG namespace)", () => {

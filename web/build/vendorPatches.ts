@@ -13,10 +13,10 @@ export interface VendorPatch {
 
 /** Freehand ("pencil") strokes render at this fraction of Excalidraw's default width. */
 export const FREEDRAW_WIDTH_FACTOR = 0.5;
-/** Text font sizes (S/M/L/XL picker and the default) are scaled by this factor. */
-export const FONT_SIZE_FACTOR = 0.7;
+/** Text font sizes (S/M/L/XL picker and the default) are scaled by this factor (0.7 × 0.7: shrunk 30% twice). */
+export const FONT_SIZE_FACTOR = 0.49;
 /** Excalidraw's default text size (medium, 20) after scaling. */
-export const DEFAULT_TEXT_SIZE = 20 * FONT_SIZE_FACTOR;
+export const DEFAULT_TEXT_SIZE = Math.round(20 * FONT_SIZE_FACTOR * 1000) / 1000;
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -39,7 +39,7 @@ export const VENDOR_PATCHES: VendorPatch[] = [
   },
   {
     // The four font-size picker buttons (small/medium/large/veryLarge).
-    name: "font size picker × 0.7",
+    name: "font size picker × 0.49",
     pattern: /\{value:(16|20|28|36),text:([a-zA-Z_$][\w$]*)\("labels\.(small|medium|large|veryLarge)"\)/g,
     replace: (_m, size, t, label) => `{value:${round(Number(size) * FONT_SIZE_FACTOR)},text:${t}("labels.${label}")`,
     expected: 4,

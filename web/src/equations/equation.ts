@@ -6,9 +6,11 @@ import { RegisterHTMLHandler } from "mathjax-full/js/handlers/html.js";
 import { AllPackages } from "mathjax-full/js/input/tex/AllPackages.js";
 import type { MathDocument } from "mathjax-full/js/core/MathDocument.js";
 import type { LiteElement } from "mathjax-full/js/adaptors/lite/Element.js";
-import { equationFileId, isEquationElement, normalizeLatex, type EquationData } from "./equationData";
+import { equationFileId, isRichElement, normalizeLatex, richFileId, type RichData } from "./equationData";
+import { MarkdownError, markdownToTex } from "./markdown";
 
 export * from "./equationData";
+export { MarkdownError, markdownToTex } from "./markdown";
 
 /**
  * LaTeX equations as markup.
@@ -62,12 +64,30 @@ export class EquationRenderer {
   render(rawLatex: string, color = DEFAULT_EQUATION_COLOR): RenderedEquation {
     const latex = normalizeLatex(rawLatex);
     if (latex === "") throw new EquationError("Type an equation");
-    const key = equationFileId(latex, color);
+    return this.renderTex(latex, color, EQUATION_FONT_PT, equationFileId(latex, color));
+  }
+
+  /** Markdown note → SVG at `fontSize` points. Throws EquationError for empty notes or bad inline math. */
+  renderMarkdown(markdown: string, color: string, fontSize: number): RenderedEquation {
+    let tex: string;
+    try {
+      tex = markdownToTex(markdown);
+    } catch (e) {
+      throw new EquationError(e instanceof MarkdownError ? e.message : String(e));
+    }
+    return this.renderTex(tex, color, fontSize, richFileId({ kind: "markdown", markdown, color, fontSize }));
+  }
+
+  renderRich(data: RichData): RenderedEquation {
+    return data.kind === "equation" ? this.render(data.latex, data.color) : this.renderMarkdown(data.markdown, data.color, data.fontSize);
+  }
+
+  private renderTex(tex: string, color: string, fontPt: number, key: string): RenderedEquation {
     const hit = this.cache.get(key);
     if (hit) return hit;
 
     const { adaptor, doc } = this.ensure();
-    const node = doc.convert(latex, { display: true, em: 16, ex: 8, containerWidth: 1280 }) as LiteElement;
+    const node = doc.convert(tex, { display: true, em: 16, ex: 8, containerWidth: 1280 }) as LiteElement;
     const html = adaptor.outerHTML(node);
     const err = /data-mjx-error="([^"]*)"/.exec(html);
     if (err) throw new EquationError(decodeEntities(err[1] ?? "Invalid LaTeX"));
@@ -76,7 +96,7 @@ export class EquationRenderer {
     const wEx = parseFloat(adaptor.getAttribute(svgNode, "width") ?? "");
     const hEx = parseFloat(adaptor.getAttribute(svgNode, "height") ?? "");
     if (!Number.isFinite(wEx) || !Number.isFinite(hEx) || wEx <= 0 || hEx <= 0) throw new EquationError("Empty equation");
-    const exPt = EQUATION_FONT_PT * EX_PER_EM;
+    const exPt = fontPt * EX_PER_EM;
     const width = round2(wEx * exPt);
     const height = round2(hEx * exPt);
     adaptor.setAttribute(svgNode, "width", `${width}pt`);
@@ -90,31 +110,30 @@ export class EquationRenderer {
   }
 }
 
-/** Excalidraw BinaryFiles entry for an equation element (regenerated, never persisted). */
-export function equationFile(renderer: EquationRenderer, data: EquationData) {
-  const r = renderer.render(data.latex, data.color);
-  return {
-    id: equationFileId(normalizeLatex(data.latex), data.color),
-    mimeType: "image/svg+xml" as const,
-    dataURL: r.dataURL,
-    created: 0,
-  };
+/** Excalidraw BinaryFiles entry for a rich element (regenerated, never persisted). */
+export function richFile(renderer: EquationRenderer, data: RichData) {
+  const r = renderer.renderRich(data);
+  return { id: richFileId(data), mimeType: "image/svg+xml" as const, dataURL: r.dataURL, created: 0 };
 }
 
-/** Files map for every equation in `elements` (skips equations whose LaTeX no longer renders). */
-export function equationFiles(renderer: EquationRenderer, elements: readonly unknown[]): Record<string, ReturnType<typeof equationFile>> {
-  const files: Record<string, ReturnType<typeof equationFile>> = {};
+/** Files map for every equation / Markdown note in `elements` (skips ones whose source no longer renders). */
+export function richFiles(renderer: EquationRenderer, elements: readonly unknown[]): Record<string, ReturnType<typeof richFile>> {
+  const files: Record<string, ReturnType<typeof richFile>> = {};
   for (const el of elements) {
-    if (!isEquationElement(el)) continue;
+    if (!isRichElement(el)) continue;
     try {
-      const f = equationFile(renderer, el.customData);
+      const f = richFile(renderer, el.customData);
       files[f.id] = f;
     } catch {
-      // A broken equation still shows as Excalidraw's empty-image placeholder; its LaTeX is kept.
+      // A broken element still shows as Excalidraw's empty-image placeholder; its source is kept.
     }
   }
   return files;
 }
+
+/** Back-compat names (v1.0.3). */
+export const equationFile = richFile;
+export const equationFiles = richFiles;
 
 function utf8ToBase64(text: string): string {
   const bytes = new TextEncoder().encode(text);

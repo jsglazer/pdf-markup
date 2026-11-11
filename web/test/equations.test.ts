@@ -91,7 +91,7 @@ describe("equations in the sidecar (D7 exception)", () => {
   });
 });
 
-describe("DocumentController equation commands", () => {
+describe("DocumentController equation / Markdown commands", () => {
   it("inserts or edits through the live editor and reports availability", async () => {
     const pair = createMemoryTransportPair();
     const controller = new DocumentController({
@@ -101,20 +101,25 @@ describe("DocumentController equation commands", () => {
       scheduler: new FakeScheduler(),
     });
     controller.start();
-    expect(controller.commitEquation("x", null)).toBe(false); // no live editor yet
+    expect(controller.commitRich("equation", "x", null)).toBe(false); // no live editor yet
 
-    const handle = { insertEquation: vi.fn(), updateEquation: vi.fn() };
+    const handle = { insertRich: vi.fn(), updateRich: vi.fn() };
     controller.setLiveEditor(handle);
-    expect(controller.getState().canInsertEquation).toBe(true);
-    expect(controller.commitEquation("x^2", null)).toBe(true);
-    expect(handle.insertEquation).toHaveBeenCalledWith("x^2");
+    expect(controller.getState().canInsertRich).toBe(true);
+    expect(controller.commitRich("equation", "x^2", null)).toBe(true);
+    expect(handle.insertRich).toHaveBeenCalledWith("equation", "x^2");
+    controller.commitRich("markdown", "**hi**", null);
+    expect(handle.insertRich).toHaveBeenCalledWith("markdown", "**hi**");
 
-    controller.setSelectedEquation({ id: "eq1", latex: "x^2" });
-    expect(controller.getState().selectedEquation).toEqual({ id: "eq1", latex: "x^2" });
-    controller.commitEquation("x^3", "eq1");
-    expect(handle.updateEquation).toHaveBeenCalledWith("eq1", "x^3");
+    controller.setSelectedRich({ id: "n1", kind: "markdown", source: "**hi**" });
+    expect(controller.getState().selectedRich).toEqual({ id: "n1", kind: "markdown", source: "**hi**" });
+    const before = controller.getState().richEditRequest;
+    controller.requestRichEdit();
+    expect(controller.getState().richEditRequest).toBe(before + 1);
+    controller.commitRich("markdown", "**bye**", "n1");
+    expect(handle.updateRich).toHaveBeenCalledWith("n1", "**bye**");
 
     controller.setLiveEditor(null);
-    expect(controller.getState().canInsertEquation).toBe(false);
+    expect(controller.getState().canInsertRich).toBe(false);
   });
 });

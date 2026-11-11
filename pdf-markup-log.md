@@ -146,3 +146,42 @@ All three are in 1.0.3: `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Mar
 I tested this in real WebKit with the production bundle. I inserted your exact example through the dialog, and it rendered, autosaved, and came out correctly in the flattened PDF along with the thinner pencil stroke. Tests pass (web 63, Swift 32), and the iOS target still builds.
 
 One rule changed: the build plan disallowed images in the markup. Equations are stored as image elements, so I allowed images only when they're equations. Ordinary images are still blocked, and the sidecar still holds no image files.
+
+## 2026-11-11 — v1.0.4: text another 30% smaller; Markdown text notes
+
+**Prompt:** "fantastic. let's shrink the text another 30%. can you add way to insert/edit markup text?"
+
+- Asked what "insert/edit markup text" meant (Excalidraw's own Text tool already exists): plain-text dialog, Markdown text, or debugging the built-in tool. **Answer: Markdown text.**
+- **Text size:** `FONT_SIZE_FACTOR` 0.7 → 0.49 (30% smaller again). Picker sizes S/M/L/XL = 7.84/9.8/13.72/17.64 pt; default 9.8. Existing text keeps its stored size. Equations stay at 14 pt (not changed — they weren't part of the request).
+- **Markdown notes** use the same mechanism as equations: an image element with `customData: { kind: "markdown", markdown, color, fontSize }`, re-rendered by MathJax on load, preview and export, with no image file stored in the sidecar.
+  - `src/equations/markdown.ts`: Markdown subset → TeX layout (`\begin{array}{l}`, one row per line). Blocks: `#`/`##`/`###` headings (`\Large`/`\large`/normal, bold), `-`/`*`/`+` bullets (2 spaces per nesting level), `1.` numbered items, `>` quotes (bar + italic), blank line = paragraph gap; line breaks kept, no automatic wrapping (MathJax 3 has no line breaking). Inline: `**bold**`/`__bold__`, `*italic*`/`_italic_` (not inside words, so `snake_case` stays literal), `***both***`, `` `code` `` (`\texttt`), `$math$` and `\(math\)` passed through, backslash escapes. Literal TeX specials are escaped for textmacros (`\{ \} \$ \_ \# \% \&`, `$\backslash$`, `\char"7E`, `\char"5E`).
+  - Generalised equations into "rich" elements: `RichData = EquationData | MarkdownData`, `isRichElement`, `richSource`, `richFileId` (equation ids unchanged from 1.0.3), `richFile`/`richFiles`; `EquationRenderer.renderMarkdown(md, color, fontSize)` and `renderRich(data)` share one MathJax TeX→SVG core. The schema accepts image elements only when they are rich elements.
+  - Controller/adapter: `LiveEditorHandle.insertRich(kind, source)` / `updateRich(id, source)`; `selectedRich {id, kind, source}`, `canInsertRich`, `richEditRequest`, `commitRich`. A new note uses the current pen colour and text size.
+  - UI: `RichDialog` (replaces `EquationDialog`) serves both kinds with a live preview. Toolbar in Markup mode: **¶ Text** and **∑ Equation**; with a note or equation selected, its button reads **Edit text** / **Edit ∑**. Double-click or Enter on either opens its editor.
+- Tests: new `test/markdown.test.ts` (escaping, inline conversion including the intraword-underscore rule — which caught a real bug — block layout, empty-note error, rendering and font-size scaling, bad inline math, sidecar round-trip, malformed note rejection); controller test updated for both kinds; offline test checks the new font sizes. Vitest 71/71, `swift test` 32/32.
+- Real-WebKit check: ¶ Text → typed a note with a heading, bold, inline math, italic, bullets, code, literal `50% {cases} & snake_case` and a quote → preview OK, inserted, autosaved; the flattened export shows it all correctly formatted.
+- Version 1.0.3 → 1.0.4; iOS Simulator build clean; `dist/PDF-Markup-1.0.4.dmg` (Developer ID signed, not notarized). README updated.
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Text still too large | Font factor 0.49 (S/M/L/XL 7.84/9.8/13.72/17.64, default 9.8) |
+| 2 | No formatted text notes | ¶ Text: Markdown → TeX → MathJax SVG, stored as Markdown source, editable via Edit text / double-click / Enter |
+| 3 | `snake_case` rendered as italic | Underscore emphasis ignored inside words |
+| 4 | Equation-only plumbing | Generalised to rich elements (equation + markdown) across data, renderer, schema, controller, adapter and UI |
+
+**Summary presented to user:**
+
+Both are in 1.0.4: `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.4.dmg`. Quit the app, then drag it over the copy in Applications.
+
+**Text** is 30% smaller again, so it's now 49% of Excalidraw's original size. S/M/L/XL are 7.8/9.8/13.7/17.6 pt, and the default is 9.8. Text you've already placed keeps its size. Equations stay at their current size; say if you want them smaller too.
+
+**Markdown text:** in Markup mode there's a new **¶ Text** button next to **∑ Equation**. It opens a box with a live preview and supports:
+- `#`, `##`, `###` headings
+- `**bold**`, `*italic*`, `` `code` ``
+- inline math like `$e = mc^2$`
+- `-` bullets and `1.` numbered lists (indent 2 spaces to nest)
+- `>` quotes
+
+Line breaks stay as you type them, but long lines don't wrap automatically, so press Return where you want a break. The note uses your current pen colour and text size. To change it, select it and click **Edit text**, double-click it, or press Enter. It's saved in the sidecar as Markdown, so it stays editable.
+
+Tested in real WebKit: a note with a heading, bold, math, bullets, code and a quote rendered correctly on the page and in the flattened PDF export. Tests pass (web 71, Swift 32), and the iOS app still builds.

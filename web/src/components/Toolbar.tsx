@@ -12,9 +12,9 @@ interface Props {
   onGoTo: (page: number) => void;
   onZoom: (kind: "in" | "out" | "fit") => void;
   onExport: () => void;
-  /** null = hidden (not in markup mode); otherwise the label state of the ∑ button. */
-  equation: { editing: boolean; enabled: boolean } | null;
-  onEquation: () => void;
+  /** null = hidden (not in markup mode). `editing` = kind of the selected equation / note, if any. */
+  rich: { editing: "equation" | "markdown" | null; enabled: boolean } | null;
+  onRich: (kind: "equation" | "markdown") => void;
 }
 
 export function Toolbar(p: Props) {
@@ -68,15 +68,25 @@ export function Toolbar(p: Props) {
       <button type="button" onClick={() => p.onZoom("in")} aria-label="Zoom in">
         +
       </button>
-      {p.equation && (
-        <button
-          type="button"
-          onClick={p.onEquation}
-          disabled={!p.equation.enabled}
-          title={p.equation.editing ? "Edit the selected equation" : "Insert a LaTeX equation"}
-        >
-          {p.equation.editing ? "Edit ∑" : "∑ Equation"}
-        </button>
+      {p.rich && (
+        <>
+          <button
+            type="button"
+            onClick={() => p.onRich("markdown")}
+            disabled={!p.rich.enabled}
+            title={p.rich.editing === "markdown" ? "Edit the selected text" : "Insert Markdown text"}
+          >
+            {p.rich.editing === "markdown" ? "Edit text" : "¶ Text"}
+          </button>
+          <button
+            type="button"
+            onClick={() => p.onRich("equation")}
+            disabled={!p.rich.enabled}
+            title={p.rich.editing === "equation" ? "Edit the selected equation" : "Insert a LaTeX equation"}
+          >
+            {p.rich.editing === "equation" ? "Edit ∑" : "∑ Equation"}
+          </button>
+        </>
       )}
       <button
         type="button"

@@ -49,3 +49,49 @@ export function isEquationElement(el: unknown): el is { id: string; type: "image
   return d.kind === EQUATION_KIND && typeof d.latex === "string" && typeof d.color === "string";
 }
 
+
+// ---- Markdown notes (same mechanism: LaTeX-free source, re-rendered by MathJax) -----------------
+
+export const MARKDOWN_KIND = "markdown";
+
+export interface MarkdownData {
+  kind: typeof MARKDOWN_KIND;
+  markdown: string;
+  color: string;
+  /** Base font size in page points (the text size picked when the note was created). */
+  fontSize: number;
+}
+
+/** A "rich" element: an image element whose picture is regenerated from source text. */
+export type RichData = EquationData | MarkdownData;
+export type RichKind = RichData["kind"];
+
+export interface RichElement {
+  id: string;
+  type: "image";
+  customData: RichData;
+  [k: string]: unknown;
+}
+
+export function isMarkdownElement(el: unknown): el is { id: string; type: "image"; customData: MarkdownData; [k: string]: unknown } {
+  if (typeof el !== "object" || el === null) return false;
+  const e = el as { type?: unknown; customData?: unknown };
+  if (e.type !== "image" || typeof e.customData !== "object" || e.customData === null) return false;
+  const d = e.customData as Partial<MarkdownData>;
+  return d.kind === MARKDOWN_KIND && typeof d.markdown === "string" && typeof d.color === "string" && typeof d.fontSize === "number" && d.fontSize > 0;
+}
+
+export function isRichElement(el: unknown): el is RichElement {
+  return isEquationElement(el) || isMarkdownElement(el);
+}
+
+/** The editable source text of a rich element's data. */
+export function richSource(data: RichData): string {
+  return data.kind === EQUATION_KIND ? data.latex : data.markdown;
+}
+
+/** Deterministic id for a rich element's rendered file. Equation ids are unchanged from v1.0.3. */
+export function richFileId(data: RichData): string {
+  if (data.kind === EQUATION_KIND) return equationFileId(normalizeLatex(data.latex), data.color);
+  return `md-${equationFileId(data.markdown, `${data.color}@${data.fontSize}`).slice(3)}`;
+}

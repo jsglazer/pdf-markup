@@ -4,7 +4,9 @@ import type { Scheduler } from "../sidecar/sceneStore";
 import { DocumentScroller } from "./DocumentScroller";
 import { PreviewCache, type PreviewRenderer } from "./previewCache";
 import { Toolbar } from "./Toolbar";
-import { EquationDialog } from "./EquationDialog";
+import { RichDialog } from "./RichDialog";
+import { DEFAULT_TEXT_SIZE } from "../../build/vendorPatches";
+import type { RichKind } from "../controller/documentController";
 import type { EquationRenderer } from "../equations/equation";
 
 interface Props {
@@ -18,7 +20,7 @@ export function App({ controller, scheduler, renderPreview, equations }: Props) 
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomCommand, setZoomCommand] = useState<{ kind: "in" | "out" | "fit"; nonce: number } | null>(null);
-  const [equationDialog, setEquationDialog] = useState<{ latex: string; editId: string | null } | null>(null);
+  const [richDialog, setRichDialog] = useState<{ kind: RichKind; source: string; editId: string | null } | null>(null);
   const [navigateTo, setNavigateTo] = useState<{ page: number; nonce: number } | null>(null);
   const source = state.phase === "ready" ? controller.pdfSource : null;
   // One preview cache per opened document (keyed by the PDF source instance).
@@ -28,14 +30,22 @@ export function App({ controller, scheduler, renderPreview, equations }: Props) 
     setCurrentPage(1);
   }, [source]);
 
-  // Double-click / Enter on a selected equation opens it for editing.
-  const { equationEditRequest, selectedEquation } = state;
+  // Double-click / Enter on a selected equation or note opens it for editing.
+  const { richEditRequest, selectedRich } = state;
   useEffect(() => {
-    if (equationEditRequest > 0 && selectedEquation) {
-      setEquationDialog({ latex: selectedEquation.latex, editId: selectedEquation.id });
+    if (richEditRequest > 0 && selectedRich) {
+      setRichDialog({ kind: selectedRich.kind, source: selectedRich.source, editId: selectedRich.id });
     }
     // Only a new request opens the dialog, not a selection change.
-  }, [equationEditRequest]);
+  }, [richEditRequest]);
+
+  /** Toolbar: edit the selected element of that kind, otherwise start a new one. */
+  const openRich = (kind: RichKind) =>
+    setRichDialog(
+      state.selectedRich?.kind === kind
+        ? { kind, source: state.selectedRich.source, editId: state.selectedRich.id }
+        : { kind, source: "", editId: null },
+    );
 
   const goTo = useCallback(
     (page: number) => {
@@ -65,28 +75,24 @@ export function App({ controller, scheduler, renderPreview, equations }: Props) 
         onGoTo={goTo}
         onZoom={(kind) => setZoomCommand((prev) => ({ kind, nonce: (prev?.nonce ?? 0) + 1 }))}
         onExport={() => void controller.exportFlattened()}
-        equation={
+        rich={
           state.mode === "markup" && !state.readOnly
-            ? { editing: state.selectedEquation !== null, enabled: state.canInsertEquation }
+            ? { editing: state.selectedRich?.kind ?? null, enabled: state.canInsertRich }
             : null
         }
-        onEquation={() =>
-          setEquationDialog(
-            state.selectedEquation
-              ? { latex: state.selectedEquation.latex, editId: state.selectedEquation.id }
-              : { latex: "", editId: null },
-          )
-        }
+        onRich={openRich}
       />
-      {equationDialog && (
-        <EquationDialog
+      {richDialog && (
+        <RichDialog
+          kind={richDialog.kind}
           renderer={equations}
-          initialLatex={equationDialog.latex}
-          editing={equationDialog.editId !== null}
-          onCancel={() => setEquationDialog(null)}
-          onSubmit={(latex) => {
-            controller.commitEquation(latex, equationDialog.editId);
-            setEquationDialog(null);
+          initialSource={richDialog.source}
+          editing={richDialog.editId !== null}
+          previewFontSize={DEFAULT_TEXT_SIZE}
+          onCancel={() => setRichDialog(null)}
+          onSubmit={(source) => {
+            controller.commitRich(richDialog.kind, source, richDialog.editId);
+            setRichDialog(null);
           }}
         />
       )}

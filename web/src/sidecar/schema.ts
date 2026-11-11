@@ -8,14 +8,14 @@
  * - schemaVersion > 1 opens read-only.
  */
 
-import { isEquationElement } from "../equations/equationData";
+import { isRichElement } from "../equations/equationData";
 
 export const SIDECAR_SCHEMA_VERSION = 1;
 
 /**
  * Element types that are never accepted into a v1 scene (D7: no images, no network-backed embeds).
- * Exception: an "image" that is a LaTeX equation (customData.kind === "equation") is allowed — its
- * picture is regenerated from the LaTeX, so no image file is ever stored.
+ * Exception: an "image" that is a LaTeX equation or a Markdown note (customData.kind "equation" or
+ * "markdown") is allowed — its picture is regenerated from its source text, so no image file is stored.
  */
 export const DISALLOWED_ELEMENT_TYPES: ReadonlySet<string> = new Set(["image", "embeddable", "iframe"]);
 
@@ -122,7 +122,7 @@ function elementRejection(el: unknown): string | null {
   if (!isRecord(el)) return "not an object";
   if (typeof el.id !== "string" || el.id === "") return "missing id";
   if (typeof el.type !== "string") return "missing type";
-  if (DISALLOWED_ELEMENT_TYPES.has(el.type) && !isEquationElement(el)) return `type "${el.type}" is disabled in v1`;
+  if (DISALLOWED_ELEMENT_TYPES.has(el.type) && !isRichElement(el)) return `type "${el.type}" is disabled in v1`;
   if (typeof el.version !== "number") return "missing version";
   if (typeof el.versionNonce !== "number") return "missing versionNonce";
   return null;
