@@ -34,3 +34,41 @@ To test:
 5. Try **Export**. It should save `<name>-marked.pdf` through a save panel.
 
 The rest of the Mac checklist (trackpad pinch, scroll wheel over a page, drawing alignment after zoom) is in the build log. I added the script as `scripts/make-dmg.sh`, ignored `dist/` in git, and committed and pushed both. Tell me what breaks.
+
+## 2026-11-11 — v1.0.1: Open PDF, Open With, blank web view, app icon
+
+**Prompt:** "ok i installed it, granted access to `~/Dev/TEST/Markup/A` restarted the app, clicked Open PDF... and nothign happened. i also tried to use it by right-clicking the PDF and opening with the application but no luck" — then, mid-turn: "Also we need a cool icon. cyan, tech-focused"
+
+- **Open PDF… did nothing.** `HomeView` had two `.fileImporter` modifiers (PDF and folder) on the same view, and SwiftUI only presents the last one. Replaced them with one importer whose content type follows an `ImportKind` state (`.pdf` / `.folder`).
+- **Open With was ignored.** The app declared no document types and had no URL handler. Added `CFBundleDocumentTypes` (com.adobe.pdf, role Viewer, rank Alternate) to both targets; `.onOpenURL` on the root view routes the file into `LibraryModel.open` (queued in `pendingOpen` if it arrives before the library loads); `handlesExternalEvents` reuses the existing window. Verified: `open -a "PDF Markup.app" file.pdf` opens a document window titled with the file name.
+- **Found while verifying: the web view was blank in the sandboxed app.** A sandboxed WKWebView needs `com.apple.security.network.client`; without it WebKit's helper processes can't start and nothing renders, even though every byte comes from the `pdfmarkup://` scheme handler. Proved it A/B on a PDF in the granted folder: same build without the entitlement → blank; with it → toolbar, 3 pages, page list, Markup and Export all render. Added the entitlement to `App/project.yml` with a comment. This reverses the build claim that the Mac sandbox blocks the network. Offline is still enforced by the CSP (`'self'` only), the WKContentRuleList that blocks all http(s) loads, and the pdfmarkup-only navigation policy; README updated.
+- Verified the D2 prompt ("Allow saving markup next to this PDF?") appears for a PDF outside the granted folders.
+- macOS window gets `.defaultSize(1100×900)` (applies when macOS has no saved frame for the window).
+- **App icon:** added `scripts/make-icon.swift`, which draws the icon with CoreGraphics and writes `App/Sources/Assets.xcassets/AppIcon.appiconset` (iOS 1024 full-bleed + macOS 16–512 @1x/@2x rounded tile with shadow). Design: deep-navy tile with a faint grid, glowing cyan page outline with folded corner and text lines, circuit traces ending in nodes, and a white-hot freehand loop drawn by a cyan-banded stylus. `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon` set in `project.yml`; `AppIcon.icns` and `Assets.car` confirmed in the bundle.
+- Version 1.0.0 → 1.0.1 (`MARKETING_VERSION`, Dev file). Rebuilt `dist/PDF-Markup-1.0.1.dmg` (Developer ID signed, not notarized; entitlements: app-sandbox, network.client, user-selected.read-write, bookmarks.app-scope).
+- Tests: `swift test` 32/32, Vitest 55/55.
+- Test artifacts: put `claude-smoke.pdf` into `~/Dev/TEST/Markup/A` to test sibling mode, then deleted it (no sidecar had been written). Computer-use (cmux-cua) was unavailable (onboarding not finished), so checks used `open -a`, System Events and `screencapture`.
+- Not yet verified: drawing, sidecar write next to the PDF in the sandbox, export save panel.
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Open PDF… showed no picker | Single `.fileImporter` driven by `ImportKind` (SwiftUI honours only the last importer on a view) |
+| 2 | Finder Open With / double-click ignored | `CFBundleDocumentTypes` for PDF + `.onOpenURL` + `handlesExternalEvents` |
+| 3 | Blank document view in the sandboxed app | Added `com.apple.security.network.client` (WKWebView requirement); README and offline claim corrected |
+| 4 | No app icon | `scripts/make-icon.swift` generates the cyan tech icon for iOS and macOS |
+| 5 | Tiny default Mac window | `.defaultSize(width: 1100, height: 900)` |
+
+**Summary presented to user:**
+
+Both problems are fixed, and a third bug showed up while I was checking. The new DMG is `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.1.dmg`. Quit the old app and drag this one over it in Applications.
+
+**What was wrong**
+1. **Open PDF… did nothing.** The home screen had two file pickers on the same view, one for PDFs and one for folders. SwiftUI only shows the last one, so only Grant Folder Access worked. It's now a single picker that switches between PDFs and folders.
+2. **Open With did nothing.** The app never told macOS it opens PDFs, and it had no code to receive a file from Finder. It now registers as a PDF viewer and opens the file in the existing window. I confirmed that opening a PDF this way shows its document window.
+3. **Once a PDF did open, the page was blank.** A sandboxed web view needs the `network.client` entitlement, or WebKit can't start its helper processes. My earlier harness wasn't sandboxed, so it missed this. I compared builds with and without the entitlement on a PDF in your granted folder: without it the window stays blank; with it the toolbar and all pages render. The app is still offline: the page's security policy, a WebKit rule that blocks all http(s) loads, and the `pdfmarkup://`-only navigation policy still apply. Only the sandbox no longer blocks the network itself. I've corrected the README.
+
+**Icon:** a deep-navy tile with a faint grid, a glowing cyan page with circuit traces, and a bright freehand loop drawn by a cyan-banded stylus. It's generated by `scripts/make-icon.swift`, so it's easy to tweak. Tell me if you want changes.
+
+Also: the version is now 1.0.1, tests still pass (Swift 32/32, web 55/55), and everything is committed and pushed. I briefly put a test PDF in `~/Dev/TEST/Markup/A` and deleted it again. Your window may open small because macOS remembers the old window size; resize it once and it will stick.
+
+Please test drawing next. Click **Markup**, draw, and check that `<name>.pdf.excalidraw.json` appears next to the PDF. Then try **Export**. I couldn't drive those steps automatically.

@@ -4,21 +4,29 @@ import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Bindable var library: LibraryModel
-    @State private var pickingPDF = false
-    @State private var pickingFolder = false
+    /// One importer for both PDFs and folders: SwiftUI honours only the last `.fileImporter` attached
+    /// to a view, so two separate modifiers left "Open PDF…" dead.
+    enum ImportKind { case pdf, folder }
+    @State private var importKind: ImportKind = .pdf
+    @State private var importing = false
     @State private var folderPickReopens: URL?
+
+    private func pick(_ kind: ImportKind) {
+        importKind = kind
+        importing = true
+    }
 
     var body: some View {
         List {
             Section {
                 Button {
-                    pickingPDF = true
+                    pick(.pdf)
                 } label: {
                     Label("Open PDF…", systemImage: "doc.richtext")
                 }
                 Button {
                     folderPickReopens = nil
-                    pickingFolder = true
+                    pick(.folder)
                 } label: {
                     Label("Grant Folder Access…", systemImage: "folder.badge.plus")
                 }
@@ -51,10 +59,11 @@ struct HomeView: View {
             }
         }
         .navigationTitle("PDF Markup")
-        .fileImporter(isPresented: $pickingPDF, allowedContentTypes: [.pdf]) { result in
-            if case let .success(url) = result { library.open(url) }
-        }
-        .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
+        .fileImporter(isPresented: $importing, allowedContentTypes: importKind == .pdf ? [.pdf] : [.folder]) { result in
+            if importKind == .pdf {
+                if case let .success(url) = result { library.open(url) }
+                return
+            }
             switch result {
             case let .success(folder):
                 library.grantRoot(folder, reopening: folderPickReopens)
@@ -75,7 +84,7 @@ struct HomeView: View {
             Button("Choose Folder…") {
                 folderPickReopens = prompt.pdfURL
                 library.grantPrompt = nil
-                pickingFolder = true
+                pick(.folder)
             }
             Button("Not Now", role: .cancel) { library.declineGrant() }
         } message: { prompt in

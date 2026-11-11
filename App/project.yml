@@ -11,12 +11,13 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: NO
-    MARKETING_VERSION: 1.0.0
+    MARKETING_VERSION: 1.0.1
     CURRENT_PROJECT_VERSION: 1
     PRODUCT_BUNDLE_IDENTIFIER: com.jsglazer.pdf-markup
     PRODUCT_NAME: PDF Markup
     CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: NO
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 packages:
   PDFMarkupCore:
     path: ..
@@ -43,6 +44,11 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSSupportsOpeningDocumentsInPlace: true
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf]
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
@@ -65,8 +71,12 @@ targets:
     entitlements:
       path: Generated/PDFMarkup-macOS.entitlements
       properties:
-        # Sandboxed with no network entitlement: the OS itself blocks any network access (D1, offline).
+        # network.client is required for WKWebView in a sandboxed app: without it WebKit's helper
+        # processes cannot start and the page stays blank, even though every byte is served locally by
+        # the pdfmarkup:// scheme handler. Offline is enforced by the page CSP ('self' only), the
+        # WKContentRuleList that blocks all http(s) loads, and the pdfmarkup-only navigation policy.
         com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
         com.apple.security.files.bookmarks.app-scope: true
     info:
@@ -76,5 +86,10 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf]
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         ITSAppUsesNonExemptEncryption: false

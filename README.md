@@ -13,7 +13,7 @@ A personal PDF reader for macOS and iPadOS that lets you mark up slide decks and
 - If a PDF is outside every granted folder, the app asks you to grant its folder. If you decline, or the folder can't be granted, markup goes to an app-local store with a persistent "Sidecar not syncing – Export/Relink" badge. The app never refuses to annotate.
 - Flattened export: `<name>-marked.pdf`, with each annotated page's markup rasterized at 3× (about 216 dpi) and drawn over the page with pdf-lib, delivered through the share sheet (iPad) or a save panel (Mac). The original PDF is untouched.
 - Recent files: the last 20 opened PDFs.
-- Fully offline. PDF.js, Excalidraw and all fonts are bundled. The page has a strict Content-Security-Policy, the web view blocks every http(s) load, and the Mac app is sandboxed without a network entitlement.
+- Fully offline. PDF.js, Excalidraw and all fonts are bundled. The page has a strict Content-Security-Policy, the web view blocks every http(s) load with a content rule list, and only `pdfmarkup://` navigations are allowed. (The sandboxed Mac app does carry `network.client`, which WKWebView needs to render at all.)
 
 ## Sidecar format (v1)
 
