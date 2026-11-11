@@ -82,7 +82,7 @@ codesign -d --entitlements - --xml "$APP" 2>/dev/null | plutil -p - | sed 's/^/ 
 NOTARIZED=0
 have_profile() { xcrun notarytool history --keychain-profile "$1" >/dev/null 2>&1; }
 if [ "$SIGNED_REAL" = 1 ] && [ -z "${SKIP_NOTARIZE:-}" ]; then
-    for candidate in "${NOTARY_PROFILE:-pdf-markup-notary}" "app-router-notary" "tech-pomodoro-notary"; do
+    for candidate in "${NOTARY_PROFILE:-pdf-markup-notary}" "notarytool" "app-router-notary" "tech-pomodoro-notary"; do
         if have_profile "$candidate"; then NOTARY_PROFILE="$candidate"; break; fi
     done
 fi
