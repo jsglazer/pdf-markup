@@ -1,0 +1,12 @@
+NewBuild/
+.DS_Store
+CLAUDE.md
+GEMINI.md
+.build/
+.swiftpm/
+xcuserdata/
+web/node_modules/
+web/dist/
+App/PDFMarkup.xcodeproj/
+App/Generated/
+dist/
