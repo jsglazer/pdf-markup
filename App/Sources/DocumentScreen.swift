@@ -6,7 +6,6 @@ struct DocumentScreen: View {
     let library: LibraryModel
     let request: LibraryModel.OpenRequest
     @State private var model: DocumentModel?
-    @State private var relinking = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -41,11 +40,6 @@ struct DocumentScreen: View {
                 break
             }
         }
-        .fileImporter(isPresented: $relinking, allowedContentTypes: [.folder]) { result in
-            if case let .success(folder) = result {
-                library.grantRoot(folder, reopening: request.pdfURL)
-            }
-        }
     }
 
     @ViewBuilder
@@ -62,7 +56,7 @@ struct DocumentScreen: View {
         case .ready:
             VStack(spacing: 0) {
                 if model.storageMode == .fallback {
-                    FallbackBadge(onExport: { model.shareSidecar() }, onRelink: { relinking = true })
+                    FallbackBadge(onExport: { model.shareSidecar() }, onRelink: { library.requestImport(.folder, reopening: request.pdfURL) })
                 }
                 if let webView = model.webView {
                     WebViewContainer(webView: webView)

@@ -4,29 +4,16 @@ import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Bindable var library: LibraryModel
-    /// One importer for both PDFs and folders: SwiftUI honours only the last `.fileImporter` attached
-    /// to a view, so two separate modifiers left "Open PDF…" dead.
-    enum ImportKind { case pdf, folder }
-    @State private var importKind: ImportKind = .pdf
-    @State private var importing = false
-    @State private var folderPickReopens: URL?
-
-    private func pick(_ kind: ImportKind) {
-        importKind = kind
-        importing = true
-    }
-
     var body: some View {
         List {
             Section {
                 Button {
-                    pick(.pdf)
+                    library.requestImport(.pdf)
                 } label: {
                     Label("Open PDF…", systemImage: "doc.richtext")
                 }
                 Button {
-                    folderPickReopens = nil
-                    pick(.folder)
+                    library.requestImport(.folder)
                 } label: {
                     Label("Grant Folder Access…", systemImage: "folder.badge.plus")
                 }
@@ -59,42 +46,35 @@ struct HomeView: View {
             }
         }
         .navigationTitle("PDF Markup")
-        .fileImporter(isPresented: $importing, allowedContentTypes: importKind == .pdf ? [.pdf] : [.folder]) { result in
-            if importKind == .pdf {
-                if case let .success(url) = result { library.open(url) }
-                return
-            }
-            switch result {
-            case let .success(folder):
-                library.grantRoot(folder, reopening: folderPickReopens)
-            case .failure:
-                // D2: the folder could not be granted (e.g. a File Provider that blocks folder picks).
-                if let pdf = folderPickReopens {
-                    library.grantPrompt = LibraryModel.GrantPrompt(pdfURL: pdf, folder: pdf.deletingLastPathComponent())
-                    library.declineGrant()
-                }
-            }
-            folderPickReopens = nil
-        }
-        .alert(
-            "Allow saving markup next to this PDF?",
-            isPresented: Binding(get: { library.grantPrompt != nil }, set: { if !$0 { library.grantPrompt = nil } }),
-            presenting: library.grantPrompt
-        ) { prompt in
-            Button("Choose Folder…") {
-                folderPickReopens = prompt.pdfURL
-                library.grantPrompt = nil
-                pick(.folder)
-            }
-            Button("Not Now", role: .cancel) { library.declineGrant() }
-        } message: { prompt in
-            Text("“\(prompt.pdfURL.lastPathComponent)” is outside the folders you have granted. Grant “\(prompt.folder.lastPathComponent)” (or a folder above it) so the sidecar syncs with the PDF. If you choose Not Now, markup is kept on this device only.")
-        }
-        .alert("Error", isPresented: Binding(get: { library.errorMessage != nil }, set: { if !$0 { library.errorMessage = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(library.errorMessage ?? "")
-        }
         .onAppear { library.refresh() }
+    }
+}
+
+/// File picker and prompts live at the navigation root so they work while a document is on screen
+/// (attached to HomeView they could not present over a pushed document). One importer only: SwiftUI
+/// honours just the last `.fileImporter` on a view.
+struct LibraryPresentations: ViewModifier {
+    @Bindable var library: LibraryModel
+
+    func body(content: Content) -> some View {
+        content
+            .fileImporter(isPresented: $library.importing, allowedContentTypes: library.importKind == .pdf ? [.pdf] : [.folder]) { result in
+                library.finishImport(result)
+            }
+            .alert(
+                "Allow saving markup next to this PDF?",
+                isPresented: Binding(get: { library.grantPrompt != nil }, set: { if !$0 { library.grantPrompt = nil } }),
+                presenting: library.grantPrompt
+            ) { prompt in
+                Button("Choose Folder…") { library.requestImport(.folder, reopening: prompt.pdfURL) }
+                Button("Not Now", role: .cancel) { library.declineGrant() }
+            } message: { prompt in
+                Text("“\(prompt.pdfURL.lastPathComponent)” is outside the folders you have granted. Grant “\(prompt.folder.lastPathComponent)” (or a folder above it) so the sidecar syncs with the PDF. If you choose Not Now, markup is kept on this device only.")
+            }
+            .alert("Error", isPresented: Binding(get: { library.errorMessage != nil }, set: { if !$0 { library.errorMessage = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(library.errorMessage ?? "")
+            }
     }
 }

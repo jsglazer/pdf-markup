@@ -72,3 +72,28 @@ Both problems are fixed, and a third bug showed up while I was checking. The new
 Also: the version is now 1.0.1, tests still pass (Swift 32/32, web 55/55), and everything is committed and pushed. I briefly put a test PDF in `~/Dev/TEST/Markup/A` and deleted it again. Your window may open small because macOS remembers the old window size; resize it once and it will stick.
 
 Please test drawing next. Click **Markup**, draw, and check that `<name>.pdf.excalidraw.json` appears next to the PDF. Then try **Export**. I couldn't drive those steps automatically.
+
+## 2026-11-11 — v1.0.2: opening a second PDF kept the first one loaded
+
+**Prompt:** "it opens! But... PDF does not render / Sidecar not synced" (screenshot: window `test.pdf`, a blank page with an orange rectangle, "Sidecar not syncing" badge)
+
+- **What the screenshot showed was correct.** `test.pdf` is the throwaway 3-page PDF from my WebKit check (blank pages with an orange rectangle) and lives in the session scratchpad, outside the granted folder, so fallback mode and the badge are expected. It reached the user's Recents because my test runs share the app's sandbox container with the installed copy. Asked the user to remove it from Recents.
+- **Real bug found while checking:** opening `~/Dev/TEST/Markup/A/Equations Key.pdf` while `test.pdf` was showing changed the title but kept the old document and badge. `navigationDestination(item:)` reused the same `DocumentScreen`, so its `.task` never re-ran and the previous `DocumentModel` stayed. Fix: `.id(request.id)` gives each opened document its own view identity (the old screen disappears → flush/close; the new one loads).
+- **Related fix:** the file importer and the D2/error alerts were attached to `HomeView`, so they couldn't present while a document was on screen (Relink also had its own importer). Moved them into a `LibraryPresentations` modifier on the `NavigationStack`, with the import state (`importKind`, `importing`, the PDF to reopen) in `LibraryModel` (`requestImport` / `finishImport`). One importer serves Open PDF, Grant Folder, the D2 prompt and Relink.
+- Version 1.0.1 → 1.0.2; rebuilt `dist/PDF-Markup-1.0.2.dmg` (Developer ID signed, not notarized). iOS Simulator and macOS builds clean.
+- Verified on the 1.0.2 build: `Equations Key.pdf` from the granted folder renders all pages with **no** fallback badge (sibling mode), and the live Excalidraw toolbar works in Markup mode. The user started interacting with my test window mid-check, so I stopped driving the app and didn't kill the running 1.0.2 instance. The second-document switch over Open With was inconclusive (with two copies running, LaunchServices likely routed the file to the installed copy).
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Opening a second PDF kept the first PDF (and its badge) under the new title | `.id(request.id)` on `DocumentScreen` in `navigationDestination` |
+| 2 | Picker / grant prompt / errors couldn't present while a document was showing | `LibraryPresentations` at the `NavigationStack`; import state in `LibraryModel`; Relink uses the shared importer |
+
+**Summary presented to user:**
+
+The PDF in your screenshot did render. That file is my throwaway test PDF: a blank page with an orange rectangle, which is exactly what's showing. It's stored outside your granted folder, so "Sidecar not syncing" is expected for it. It landed in your Recents because my test runs share the app's storage with your installed copy. Sorry about that; right-click it in Recents and choose **Remove from Recents**.
+
+Checking that turned up a real bug, which is probably what confused things. If you open a second PDF while one is showing, the title changes but the old PDF and its badge stay. That's fixed in **1.0.2**: `/Users/josh/Dev/2-Projects/Apps/pdf-markup/dist/PDF-Markup-1.0.2.dmg`. The folder picker and the "grant this folder?" prompt also work now while a document is open, so **Relink** works.
+
+On 1.0.2, `Equations Key.pdf` from `~/Dev/TEST/Markup/A` renders all 4 pages with no badge, so markup is saved next to it, and the Excalidraw tools appear in Markup mode. You seemed to be using the window my test opened (that's the 1.0.2 build from `dist/`), so I stopped there and left it running.
+
+Next to check: draw on `Equations Key.pdf`, and within about a second `Equations Key.pdf.excalidraw.json` should appear in that folder. Then reopen it, then try Export. Committed and pushed.

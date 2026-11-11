@@ -27,6 +27,12 @@ final class LibraryModel {
     var grantPrompt: GrantPrompt?
     var openDocument: OpenRequest?
     var errorMessage: String?
+
+    enum ImportKind { case pdf, folder }
+    var importKind: ImportKind = .pdf
+    var importing = false
+    /// The PDF to reopen after a folder grant (D2 prompt or the Relink badge).
+    private var folderPickReopens: URL?
     /// PDFs whose folder grant the user declined this launch (D2 → fallback store).
     private var declined: Set<String> = []
 
@@ -49,6 +55,32 @@ final class LibraryModel {
             grantPrompt = GrantPrompt(pdfURL: pdfURL, folder: folder)
         case .sibling, .fallback:
             openDocument = OpenRequest(pdfURL: pdfURL, plan: plan)
+        }
+    }
+
+    func requestImport(_ kind: ImportKind, reopening pdfURL: URL? = nil) {
+        grantPrompt = nil
+        importKind = kind
+        folderPickReopens = kind == .folder ? pdfURL : nil
+        importing = true
+    }
+
+    func finishImport(_ result: Result<URL, Error>) {
+        let reopen = folderPickReopens
+        folderPickReopens = nil
+        switch (importKind, result) {
+        case let (.pdf, .success(url)):
+            open(url)
+        case let (.folder, .success(folder)):
+            grantRoot(folder, reopening: reopen)
+        case (.folder, .failure):
+            // D2: the folder could not be granted (e.g. a File Provider that blocks folder picks).
+            if let reopen {
+                declined.insert(reopen.path)
+                openDocument = OpenRequest(pdfURL: reopen, plan: .fallback)
+            }
+        case (.pdf, .failure):
+            break
         }
     }
 

@@ -54,8 +54,12 @@ struct RootView: View {
         NavigationStack {
             HomeView(library: library)
                 .navigationDestination(item: $library.openDocument) { request in
+                    // A new identity per opened document: SwiftUI otherwise reuses the screen, its
+                    // .task never re-runs, and the previous PDF stays loaded under the new title.
                     DocumentScreen(library: library, request: request)
+                        .id(request.id)
                 }
         }
+        .modifier(LibraryPresentations(library: library))
     }
 }
