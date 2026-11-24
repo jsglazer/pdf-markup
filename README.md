@@ -1,5 +1,14 @@
 # PDF Markup
 
+[![GitHub release](https://img.shields.io/github/v/release/jsglazer/pdf-markup?logo=github)](https://github.com/jsglazer/pdf-markup/releases)
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)](https://swift.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/jsglazer/pdf-markup/blob/main/LICENSE)
+[![Made with Claude](https://img.shields.io/badge/Made_with-Claude-D97756?logo=anthropic)](https://claude.ai)
+[![Gemini Flash Antigravity](https://img.shields.io/badge/Gemini%20Flash-Antigravity-4f86f7?logo=google-gemini&logoColor=white)](https://github.com/google-gemini)
+[![CI](https://github.com/jsglazer/pdf-markup/actions/workflows/ci.yml/badge.svg)](https://github.com/jsglazer/pdf-markup/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jsglazer/pdf-markup/actions/workflows/codeql.yml/badge.svg)](https://github.com/jsglazer/pdf-markup/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jsglazer/pdf-markup/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jsglazer/pdf-markup)
+
 A personal PDF reader for macOS and iPadOS that lets you mark up slide decks and other PDFs with the full [Excalidraw](https://github.com/excalidraw/excalidraw) toolset: freehand pen (Apple Pencil on iPad), arrows, shapes, text and callouts. Markup stays editable. It is saved as a plain JSON sidecar next to the PDF (`deck.pdf` → `deck.pdf.excalidraw.json`), so it syncs through Dropbox along with the PDF, and the PDF itself is never modified.
 
 ## Features
