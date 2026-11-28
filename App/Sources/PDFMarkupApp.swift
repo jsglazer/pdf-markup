@@ -1,3 +1,4 @@
+import DevStyleKit
 import PDFMarkupCore
 import SwiftUI
 
@@ -39,10 +40,34 @@ struct PDFMarkupApp: App {
             }
             // Reuse the existing window instead of opening a new one for each file (macOS).
             .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            // DevStyle: the profile for the window's appearance; the window takes that profile's
+            // own appearance (one profile picked for both modes).
+            .devStyle(PDFStyle.store, requested: nil)
         }
         .handlesExternalEvents(matching: ["*"])
         #if os(macOS)
         .defaultSize(width: 1100, height: 900)
+        .commands {
+            // View ▸ Style Profile: every profile, light and dark in one list (custom ones too),
+            // the one showing checked; picking one shows it in both light and dark mode. While
+            // "Follow shared style" is on this changes the style for every app that follows it.
+            CommandGroup(after: .toolbar) {
+                Divider()
+                DSStyleProfileMenu(store: PDFStyle.store)
+            }
+        }
+        #endif
+
+        #if os(macOS)
+        // Settings ▸ Style: Follow shared style, and one light and one dark profile.
+        Settings {
+            Form {
+                DSStyleSettingsSection(store: PDFStyle.store, appName: "PDF Markup")
+            }
+            .formStyle(.grouped)
+            .frame(width: 460)
+            .devStyle(PDFStyle.store, requested: nil)
+        }
         #endif
     }
 }

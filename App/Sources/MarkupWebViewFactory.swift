@@ -1,3 +1,4 @@
+import DevStyleKit
 import Foundation
 import PDFMarkupCore
 import WebKit
@@ -14,8 +15,13 @@ import UIKit
 enum MarkupWebViewFactory {
     static let blockNetworkRules = #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}}]"#
 
-    static func make(schemeHandler: AppSchemeHandler, transport: WebViewBridgeTransport, navigationDelegate: WKNavigationDelegate) -> WKWebView {
+    /// - Parameter profileCSS: the active DevStyle profile, in place before the page first renders
+    ///   (later changes go through `DSWebInjector.apply`).
+    static func make(schemeHandler: AppSchemeHandler, transport: WebViewBridgeTransport, navigationDelegate: WKNavigationDelegate, profileCSS: String = "") -> WKWebView {
         let config = WKWebViewConfiguration()
+        if !profileCSS.isEmpty {
+            config.userContentController.addUserScript(DSWebInjector.userScript(css: profileCSS))
+        }
         config.setURLSchemeHandler(schemeHandler, forURLScheme: AppSchemeHandler.scheme)
         config.userContentController.add(WeakScriptMessageHandler(transport), name: BridgeProtocol.handlerName)
         config.websiteDataStore = .nonPersistent()

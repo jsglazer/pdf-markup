@@ -1,3 +1,4 @@
+import DevStyleKit
 import Foundation
 import Observation
 import PDFMarkupCore
@@ -28,6 +29,8 @@ final class DocumentModel {
     @ObservationIgnored private let navigationDelegate = LocalOnlyNavigationDelegate()
     @ObservationIgnored private(set) var controller: DocumentBridgeController?
     @ObservationIgnored private(set) var webView: WKWebView?
+    /// The DevStyle profile showing (set by the screen before `load()` and whenever it changes).
+    @ObservationIgnored private var profileCSS = ""
 
     init(pdfURL: URL, plan: SidecarAccessPlan, environment: AppEnvironment) {
         self.pdfURL = pdfURL
@@ -38,6 +41,13 @@ final class DocumentModel {
     }
 
     var displayName: String { pdfURL.lastPathComponent }
+
+    /// Show another DevStyle profile (a new pick, a light/dark switch, an edited profile file).
+    func setProfileCSS(_ css: String) {
+        guard css != profileCSS else { return }
+        profileCSS = css
+        if let webView { DSWebInjector.apply(css: css, to: webView) }
+    }
 
     func load() async {
         guard controller == nil else { return }
@@ -54,7 +64,9 @@ final class DocumentModel {
             let session = DocumentSession(document: document, primary: primary, fallback: environment.fallbackStore, ring: environment.ring)
             storageMode = session.storageMode
 
-            let webView = MarkupWebViewFactory.make(schemeHandler: schemeHandler, transport: transport, navigationDelegate: navigationDelegate)
+            let webView = MarkupWebViewFactory.make(
+                schemeHandler: schemeHandler, transport: transport, navigationDelegate: navigationDelegate, profileCSS: profileCSS
+            )
             let controller = DocumentBridgeController(
                 session: session,
                 transport: transport,

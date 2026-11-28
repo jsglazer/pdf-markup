@@ -11,7 +11,7 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: NO
-    MARKETING_VERSION: 1.0.4
+    MARKETING_VERSION: 1.0.5
     CURRENT_PROJECT_VERSION: 1
     PRODUCT_BUNDLE_IDENTIFIER: com.jsglazer.pdf-markup
     PRODUCT_NAME: PDF Markup
@@ -21,6 +21,11 @@ settings:
 packages:
   PDFMarkupCore:
     path: ..
+  # Shared look for all my apps (https://github.com/jsglazer/devstyle): style profiles for the web
+  # core, View > Style Profile and Settings > Style.
+  DevStyleKit:
+    url: https://github.com/jsglazer/devstyle
+    exactVersion: 1.0.5
 targets:
   PDFMarkup-iOS:
     type: application
@@ -29,6 +34,8 @@ targets:
       - path: Sources
     dependencies:
       - package: PDFMarkupCore
+      - package: DevStyleKit
+        product: DevStyleKit
     preBuildScripts:
       - name: Build and embed web core
         script: '"$SRCROOT/../scripts/embed-web.sh"'
@@ -61,6 +68,8 @@ targets:
       - path: Sources
     dependencies:
       - package: PDFMarkupCore
+      - package: DevStyleKit
+        product: DevStyleKit
     preBuildScripts:
       - name: Build and embed web core
         script: '"$SRCROOT/../scripts/embed-web.sh"'
@@ -79,6 +88,8 @@ targets:
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
         com.apple.security.files.bookmarks.app-scope: true
+        # DevStyle: the shared style folder every app reads (Group Containers/PWGXN26URQ.com.jsglazer.devstyle).
+        com.apple.security.application-groups: [PWGXN26URQ.com.jsglazer.devstyle]
     info:
       path: Generated/Info-macOS.plist
       properties:

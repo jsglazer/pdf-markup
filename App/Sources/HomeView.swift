@@ -1,3 +1,4 @@
+import DevStyleKit
 import PDFMarkupCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -46,6 +47,18 @@ struct HomeView: View {
             }
         }
         .navigationTitle("PDF Markup")
+        #if os(iOS)
+        // iOS has no View menu: the same Style Profile list (built-in profiles) in the toolbar.
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    DSStyleProfileMenu(store: PDFStyle.store)
+                } label: {
+                    Label("Style Profile", systemImage: "paintpalette")
+                }
+            }
+        }
+        #endif
         .onAppear { library.refresh() }
     }
 }

@@ -1,3 +1,4 @@
+import DevStyleKit
 import PDFMarkupCore
 import SwiftUI
 import WebKit
@@ -7,6 +8,8 @@ struct DocumentScreen: View {
     let request: LibraryModel.OpenRequest
     @State private var model: DocumentModel?
     @Environment(\.scenePhase) private var scenePhase
+    /// The DevStyle profile for this window's appearance (see `PDFStyle`).
+    @Environment(\.dsTheme) private var dsTheme
 
     var body: some View {
         Group {
@@ -22,9 +25,11 @@ struct DocumentScreen: View {
         #endif
         .task {
             let m = DocumentModel(pdfURL: request.pdfURL, plan: request.plan, environment: library.environment)
+            m.setProfileCSS(dsTheme.profile.css)
             model = m
             await m.load()
         }
+        .onChange(of: dsTheme.profile.css) { _, css in model?.setProfileCSS(css) }
         .onDisappear {
             // D8: flush on document close.
             if let model { Task { await model.close() } }
